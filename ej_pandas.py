@@ -3,7 +3,7 @@ import glob
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-df = pd.read_csv('Ultimate_Games_Dataset.csv') #Importar dataset, puede ser un csv (seria una tabla)
+df = pd.read_csv('min.csv') #Importar dataset, puede ser un csv (seria una tabla)
 #Cuantitativo(discreto, count), nominal, ordinal
 dataframe2 = pd.DataFrame({'id': [0,1,2], 'letra': ['a', 'b', 'c']}) #Crear uno nuevo
 
@@ -55,7 +55,7 @@ matriz = df.pivot_table(values='popularity_score', index='release_year', columns
 #df.to_html('output.html') #Guardar el dataset como tabla html
 #df.to_csv('limpios.csv', index=False) #Exportar a csv
 #Visualizar estos datos
-#sns.scatterplot(data=pd.read_csv('Ultimate_Games_Dataset.csv'), x='platform_count', y='metacritic', hue='game_mode')
+#sns.scatterplot(data=pd.read_csv('min.csv'), x='platform_count', y='metacritic', hue='game_mode')
 #plt.show()
 
 #Concatenar datos de multiples csv en el mismo dataframe
