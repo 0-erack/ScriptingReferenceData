@@ -14,6 +14,7 @@ print(df['title'].head()) #Operaciones tambien con columnas
 print(df.dtypes) #Mostrar tipos asignados de las columnas (int32, int64, object, float32, float64, string, category)
 
 print(df['release_year'].unique()) #Mostrar solo los unicos
+print(df['release_year'].count())
 print(df.info()) #Info variada del dataframe
 print(df.describe())
 print(df.columns)
@@ -47,6 +48,7 @@ df['avg_playtime_hours'] = df['avg_playtime_hours'].ffill(axis=0) #Intenta relle
 df['title'] = df['title'].apply(lambda x: x + ": el juego") #Aplicar una transformacion lambda en todos los valores
 subset = df.loc[(df['release_year'] > 2000) & (df['platform_count'] > 1)] #Recojer una muestra del dataset
 subset = df.iloc[10:21, 0:3] #Igual pero por indices
+print(pd.qcut(range(5), 3, labels=["good", "medium", "bad"])) #Corta series en partes iguales
 stats_por_agno = df.groupby('release_year')['popularity_score'].mean().sort_values(ascending=False) #Agrupar por datos (por agno), poner un valor con agregacion (media de popularidad), y ordenar
 subset = df[df['theme'] == 'Fantasy'].sort_values(by='title') #Filtrar y ordenar
 completo = pd.merge(df, subset, on='game_id', how='left') #Nuevos dataframes con joins

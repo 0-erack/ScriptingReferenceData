@@ -18,7 +18,7 @@ print(rdd_resultado.collect())
 
 #Cargando datos de un archivo (en este caso sin Hadoop)
 #df_spark = spark.read.csv("min.csv", header=True, inferSchema=True)
-#df_spark.show(5)
+#df = spark.read.parquet('./dataset/') #Leer Parquet (preparado para big data y distribucion)
 
 #Cargando datos de un archivo
 rdd = spark.sparkContext.textFile("min.csv", 15) #Paraleliza en 15 segmentos
