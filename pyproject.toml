@@ -6,7 +6,10 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "asyncio>=4.0.0",
+    "chroma>=0.2.0",
+    "importlib-resources>=7.1.0",
     "matplotlib>=3.10.9",
+    "nltk>=3.9.4",
     "numpy>=2.4.4",
     "pandas>=3.0.3",
     "pyspark>=4.1.1",
@@ -14,6 +17,7 @@ dependencies = [
     "seaborn>=0.13.2",
     "squarify>=0.4.4",
     "tensorflow>=2.21.0",
+    "tensorflow-datasets>=4.9.10",
     "torch>=2.12.0",
     "transformers>=5.8.1",
 ]

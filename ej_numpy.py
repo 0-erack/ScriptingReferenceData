@@ -13,6 +13,7 @@ print(np.array([3,"g",6, False]).dtype) #Igualmente no es recomendable, siempre 
 print(np.zeros((2,3))) #Matriz 2x3 lleno de 0s, tambien hay np.ones
 print(np.arange(0, 10, 2)) #Del 0 al 10 en saltos de 2
 print(np.linspace(0, 1, 5)) #Del 0 al 1, 5 numeros (float)
+print(np.random.hypergeometric(ngood=5,nbad=5,nsample=6,size=100)) #Valores aleatorios
 
 print(dimension3[1,0,2]) #Elemento concreto
 print(dimension2[1, :]) #Fila 1
@@ -42,3 +43,5 @@ print(np.all(dimension1 > 3)) #Saber si todos cumplen una condicion, para saber 
 print(np.where(dimension1 > 1)) #Filtrar con todas las ocasiones donde se cumpla la condicion
 for i in np.nditer(dimension2): #Iterar array, para poder alterarlo usar op_flags=['readwrite']
     print(i)
+
+
