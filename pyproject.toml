@@ -16,6 +16,7 @@ dependencies = [
     "pandas>=3.0.3",
     "pyspark>=4.1.1",
     "scikit-learn>=1.8.0",
+    "scipy>=1.17.1",
     "seaborn>=0.13.2",
     "squarify>=0.4.4",
     "streamlit>=1.57.0",
