@@ -1,13 +1,18 @@
 import pandas as pd #Usando Pandas para la manipulacion de datos
 import glob
 import seaborn as sns
+import numpy as np
 import matplotlib.pyplot as plt
 
 df = pd.read_csv('min.csv') #Importar dataset, puede ser un csv (seria una tabla)
 #Cuantitativo(discreto, count), nominal, ordinal
 dataframe2 = pd.DataFrame({'id': [0,1,2], 'letra': ['a', 'b', 'c']}) #Crear uno nuevo
+print(pd.Series(["a", "b", "c"])) #Esto crearia una serie, no es lo mismo que un dataframe (mas parecido a un array de Numpy, 1D)
+print(pd.Series(np.ones(10)))
+print(pd.DataFrame(np.array([[1,2], [3,4]]), columns=["a", "b"])) #Un array 2D de Numpy tambien puede generar un dataframe
+print(pd.DataFrame(list(zip(["a", "b", "c"], [1,2,3])), columns=["letras", "numeros"])) #Mas maneras
 
-print(df.head(10)) #Mostrar algunos samples del dataset
+print(df.head(10)) #Mostrar algunos samples del dataset, head para los primeros y tail para los ultimos
 print(df) #Mostrar dataset entero (no es un array, es un objeto especial de Pandas)
 print(len(df)) #Cantidad de filas
 print(df['title'].head()) #Operaciones tambien con columnas
@@ -23,6 +28,7 @@ print(df['platform_count'].mean()) #La media
 print(df.platform_count.mean()) #En algunos casos las columnas tambien se pueden representar de esta manera
 print(df.duplicated()) #Lista los id cuyos valores estan enteramente duplicados, df.duplicated().value_counts() devolveria la cantidad de duplicados y no duplicados
 
+df.set_index("serial_no") #Establecer columna como indice, un dataframe puede tener mas de un index o incluso ser jerarquizado
 df['nuevo'] = df['title'].add(' y ya') #Crear nueva columna haciendo operaciones bulk
 df['inicial'] = df.title.str[0:1] #Dividir string
 separado = df['title'].str.split('-') #Separar un valor en dos o mas (cantidad fija)
@@ -50,9 +56,9 @@ subset = df.loc[(df['release_year'] > 2000) & (df['platform_count'] > 1)] #Recoj
 subset = df.iloc[10:21, 0:3] #Igual pero por indices
 print(pd.qcut(range(5), 3, labels=["good", "medium", "bad"])) #Corta series en partes iguales
 stats_por_agno = df.groupby('release_year')['popularity_score'].mean().sort_values(ascending=False) #Agrupar por datos (por agno), poner un valor con agregacion (media de popularidad), y ordenar
-subset = df[df['theme'] == 'Fantasy'].sort_values(by='title') #Filtrar y ordenar
+subset = df[df['theme'] == 'Fantasy'].sort_values(by='title') #Filtrar y ordenar (sort_index ordenaria segun la columna de indice)
 completo = pd.merge(df, subset, on='game_id', how='left') #Nuevos dataframes con joins
-matriz = df.pivot_table(values='popularity_score', index='release_year', columns='all_genres', aggfunc='mean') #Parecido a groupby pero con matriz
+matriz = df.pivot_table(values='popularity_score', index='release_year', columns='all_genres', aggfunc='mean') #Parecido a groupby pero con matriz, similar a .stack() que separaria en filas los datos en columnas que no son index
 
 #df.to_html('output.html') #Guardar el dataset como tabla html
 #df.to_csv('limpios.csv', index=False) #Exportar a csv
