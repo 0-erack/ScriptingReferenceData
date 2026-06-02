@@ -53,4 +53,11 @@ data_tree = df['controls'].value_counts().head(10)
 squarify.plot(sizes=data_tree.values, label=data_tree.index, alpha=0.8, color=sns.color_palette('viridis', len(data_tree))) #Cajas de tamagnos, usa Squarify
 plt.show()
 
-#Se pueden lograr mas tipos de graficos como de sankey, waterfall, radar, mapas, de calor, etc.
+#Se pueden lograr mas estilos y tipos de graficos como de sankey, waterfall, radar, mapas, de calor, etc. Estan repartidos entre Matplotlib y Seaborn u otras librerias
+
+#Uso de facetgrid
+g_manual = sns.FacetGrid(df, col="view_dimension", hue="game_mode", height=4, aspect=1)
+g_manual.map(sns.scatterplot, "platform_count", "metacritic", alpha=0.7)
+g_manual.add_legend(title="Modo de Juego")
+g_manual.set_titles(col_template="Juegos en {col_name}")
+plt.show()

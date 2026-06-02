@@ -27,8 +27,10 @@ print(df['controls'].value_counts()) #Cantidad de cada valor presente
 print(df['platform_count'].mean()) #La media
 print(df.platform_count.mean()) #En algunos casos las columnas tambien se pueden representar de esta manera
 print(df.duplicated()) #Lista los id cuyos valores estan enteramente duplicados, df.duplicated().value_counts() devolveria la cantidad de duplicados y no duplicados
+print(df['release_year'].isnull().sum()) #Cantidad de veces que no hay valor en esa columna
 
 df.set_index("serial_no") #Establecer columna como indice, un dataframe puede tener mas de un index o incluso ser jerarquizado
+print(df.xs(2)) #Las filas cuyo index sea asi
 df['nuevo'] = df['title'].add(' y ya') #Crear nueva columna haciendo operaciones bulk
 df['inicial'] = df.title.str[0:1] #Dividir string
 separado = df['title'].str.split('-') #Separar un valor en dos o mas (cantidad fija)
@@ -43,6 +45,7 @@ df['dimension'] = df['view_dimension'].str.extract('(\d+)') #Mas sencillo que sp
 df = df.drop('status_yet', axis=1) #Borrar una columna
 df['controls'] = pd.Categorical(df['controls'], ['Controller & Keyboard/Mouse', 'Keyboard / Mouse', 'Controller', 'Not Specified'], ordered=True) #Establece la columna como categorica, asi que sera como un enum y se ordenara asi
 recortado = df[['title', 'game_id']] #Recortar columnas
+print(pd.concat([df, df], ignore_index=True)) #Apilar dataframes
 df = pd.get_dummies(data=df, columns=['view_dimension']) #OneHotEncoding, hara columnas por cada valor distinto poniendo False o True
 df['release_year'] = df['release_year'].fillna(0) #Reemplaza los no presentes por 0, haria referencia a una columna
 df = df.dropna(subset=['release_year']) #Directamente borra los registros con datos n/a en esa columna, puede no recibir argumentos
@@ -62,9 +65,16 @@ matriz = df.pivot_table(values='popularity_score', index='release_year', columns
 
 #df.to_html('output.html') #Guardar el dataset como tabla html
 #df.to_csv('limpios.csv', index=False) #Exportar a csv
+#Tambien estan to_excel para .xlsx, to_json para .json
 #Visualizar estos datos
 #sns.scatterplot(data=pd.read_csv('min.csv'), x='platform_count', y='metacritic', hue='game_mode')
 #plt.show()
+
+for i in df.itertuples(): #Iterar en el dataframe a modo de tuplas
+    print(i)
+for index, row in df.iterrows(): #Igual pero a modo de filas
+    print(index)
+    print(row)
 
 #Concatenar datos de multiples csv en el mismo dataframe
 def ver_dataframes():
