@@ -1,4 +1,5 @@
 import pandas as pd #Usando Pandas para la manipulacion de datos
+from pandas.api.types import CategoricalDtype
 import glob
 import seaborn as sns
 import numpy as np
@@ -20,20 +21,25 @@ print(df.dtypes) #Mostrar tipos asignados de las columnas (int32, int64, object,
 
 print(df['release_year'].unique()) #Mostrar solo los unicos
 print(df['release_year'].count())
+print(df['user_rating'].diff()) #Calcula las diferencias, si es posible (deltas)
+print(df['user_rating'].pct_change()) #Calcula las diferencias, si es posible (deltas)
+print(df['user_rating'].std()) #Desviacion estandar
 print(df.info()) #Info variada del dataframe
 print(df.describe())
 print(df.columns)
 print(df['controls'].value_counts()) #Cantidad de cada valor presente
 print(df['platform_count'].mean()) #La media
+print(df['platform_count'].rolling(window=3).mean()) #Media acumulativa
 print(df.platform_count.mean()) #En algunos casos las columnas tambien se pueden representar de esta manera
-print(df.duplicated()) #Lista los id cuyos valores estan enteramente duplicados, df.duplicated().value_counts() devolveria la cantidad de duplicados y no duplicados
+print(df.duplicated()) #Lista los id cuyos valores estan enteramente duplicados, df.duplicated().value_counts() devolveria la cantidad de duplicados y no duplicados. Tambien puede recibir como argumento el nombre de una columna
 print(df['release_year'].isnull().sum()) #Cantidad de veces que no hay valor en esa columna
 
-df.set_index("serial_no") #Establecer columna como indice, un dataframe puede tener mas de un index o incluso ser jerarquizado
+df.set_index("serial_no") #Establecer columna como indice, un dataframe puede tener mas de un index o incluso ser jerarquizado, df.reset_index() para recrear el indice
 print(df.xs(2)) #Las filas cuyo index sea asi
+print(pd.MultiIndex.from_arrays([["a", "b"], [1,2]], names=["letra", "numero"])) #Un dataframe multi index, se puede usar tambien como index en otros dataframes, este multi index tendra funcionalidades extra
 df['nuevo'] = df['title'].add(' y ya') #Crear nueva columna haciendo operaciones bulk
 df['inicial'] = df.title.str[0:1] #Dividir string
-separado = df['title'].str.split('-') #Separar un valor en dos o mas (cantidad fija)
+separado = df['title'].str.split('-') #Separar un valor en dos o mas (cantidad fija), hay muchas mas funciones para maniuplar strings en masa en str como str.upper() o str.isnumeric() o str.cat(",") o str.contains("_*") o str.find("e") o str.replace("a","b") o str.count(" ")
 df['titulo1'] = separado.str.get(0)
 df['titulo2'] = separado.str.get(1)
 df['developers'] = df['developers'].str.split('|') #Separar a|b|c en a, b, c (columnas)
@@ -55,11 +61,15 @@ separado = pd.melt(frame=df, id_vars=['title'], value_vars=['metacritic', 'ratin
 df = df.drop_duplicates(subset=['title']) #Borra los que tengan ese valor duplicado, quedandose con el primero, puede no recibir nada
 df['avg_playtime_hours'] = df['avg_playtime_hours'].ffill(axis=0) #Intenta rellenar los huecos con aproximaciones, util para numericos o booleanos (locf para de antes a despues, para de despues a antes seria nocb y se usaria bfill, tambien estan bocf y wocf)
 df['title'] = df['title'].apply(lambda x: x + ": el juego") #Aplicar una transformacion lambda en todos los valores
+#df['dimension2'] = df['view_dimension'].map({"2D": "plano", "3D": "cubo"}) #Similar a .apply pero en lugar de ser por columna es por elemento
+#df = df.map(str.lower)
 subset = df.loc[(df['release_year'] > 2000) & (df['platform_count'] > 1)] #Recojer una muestra del dataset
 subset = df.iloc[10:21, 0:3] #Igual pero por indices
 print(pd.qcut(range(5), 3, labels=["good", "medium", "bad"])) #Corta series en partes iguales
-stats_por_agno = df.groupby('release_year')['popularity_score'].mean().sort_values(ascending=False) #Agrupar por datos (por agno), poner un valor con agregacion (media de popularidad), y ordenar
-subset = df[df['theme'] == 'Fantasy'].sort_values(by='title') #Filtrar y ordenar (sort_index ordenaria segun la columna de indice)
+stats_por_agno = df.groupby('release_year')['popularity_score'].mean().sort_values(ascending=False) #Agrupar por datos (por agno), poner un valor con agregacion (media de popularidad), y ordenar. Al hacer groupby devuelve un dataframe tipo agrupado con otras funciones (como .get_group("x") o agregaciones). Tambien esta pd.Grouper(level=x)
+print(df.sort_values(by='release_year').groupby('controls').first())
+subset = df[df['theme'] == 'Fantasy'].sort_values(by='title') #Filtrar y ordenar (sort_index ordenaria segun la columna de indice) (para filtrar tambien esta .mask, mas apropiado para mascaras, o .where)
+print(df[df['theme'].isin(['Fantasy', "RPG"])]) #Devolveria una mascara con trues y falses, se pueden hacer and con &
 completo = pd.merge(df, subset, on='game_id', how='left') #Nuevos dataframes con joins
 matriz = df.pivot_table(values='popularity_score', index='release_year', columns='all_genres', aggfunc='mean') #Parecido a groupby pero con matriz, similar a .stack() que separaria en filas los datos en columnas que no son index
 
@@ -76,6 +86,16 @@ for index, row in df.iterrows(): #Igual pero a modo de filas
     print(index)
     print(row)
 
+#df.index = pd.to_datetime(df['release_date']) #Establece como index la fecha en formato fecha
+print(pd.Timestamp("30/04/2011")) #Tipo de dato de fecha en Pandas
+print(pd.Timestamp(62343784, unit="s"))
+print(pd.Timestamp("30/04/2011") + pd.Timedelta("1day 1hour")) #Time delta no es una fecha sino cantidad de tiempo
+print(pd.Timedelta(days=2, hours=3))
+index2 = pd.date_range("1/1/2000", periods=9, freq="min")#.time #Obtener un rango de fechas
+series2 = pd.Series(range(9), index=index2)
+series2.resample("3min").sum() #Alterar la frecuencia
+print(series2)
+
 #Concatenar datos de multiples csv en el mismo dataframe
 def ver_dataframes():
     files = glob.glob('*.csv')
@@ -85,3 +105,4 @@ def ver_dataframes():
         df_list.append(data)
     df = pd.concat(df_list, ignore_index=True)
     return df
+
