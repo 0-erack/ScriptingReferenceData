@@ -1,4 +1,5 @@
 import requests
+import time
 from base64 import b64encode
 from typing import Optional
 from pydantic import BaseModel, Field
@@ -7,16 +8,17 @@ from langchain.tools import tool, ToolRuntime
 from langchain.agents import create_agent
 from langchain_openai import ChatOpenAI
 from langchain.chat_models import init_chat_model
-from langchain.messages import HumanMessage, AIMessage, SystemMessage
+#from langchain.messages import HumanMessage, AIMessage, SystemMessage
+from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 from langgraph.checkpoint.memory import InMemorySaver
-from langchain.agents.middleware import ToolCallLimitMiddleware, ModelCallLimitMiddleware, ModelRequest, ModelResponse, dynamic_prompt
+from langchain.agents.middleware import ToolCallLimitMiddleware, ModelCallLimitMiddleware, ModelRequest, ModelResponse, dynamic_prompt, wrap_model_call, AgentMiddleware, AgentState, SummarizationMiddleware
 from langchain_community.vectorstores import FAISS
 from langchain_openai import OpenAIEmbeddings
 from langchain_chroma import Chroma
 from langchain_core.tools import create_retriever_tool
 
-"""
-#Declarando una funcion ejecutable por la ia (solo por la ia)
+
+#Declarando una funcion ejecutable por la ia (solo por la ia), si esta funcion invocase otro agente podria ser orquestacion de agentes, pero para eso esta mejor Langgraph
 @tool('get_weather', description='Returns the current weather in a specific city', return_direct=False)
 def get_weather(city: str):
     try:
@@ -34,7 +36,7 @@ def get_weather(city: str):
 model = ChatOpenAI(base_url="http://localhost:1234/v1", api_key="lm-studio", model="qwen/qwen2.5-coder-14b", temperature=0.7)
 #agent = create_agent(model='gpt-4.1-mini', tools=[get_weather], system_prompt="You are a helpful assistant") #Ejemplo creando el agente con OpenAI como proveedor
 agent = create_agent(model=model, tools=[get_weather], system_prompt="You are a helpful assistant") #Creando el agente a partir del modelo
-#Usar el modelo enviando un array de mensajes, convendria darle pautas para que interprete y responda de maneras concretas
+#Usar el modelo enviando un array de mensajes, convendria darle pautas para que interprete y responda de maneras concretas (como esta llamando al modelo, convendria usar llamadas asincronas)
 response = agent.invoke({'messages': [
     {'role': 'system', 'content': 'Answer only user questions about weather in different parts of the world making use of the available tools for fetching the data, don\'t respond if the user asks for anything else'},
     #{'role': 'user', 'content': 'Fibonacci in C'} #con esto te dira que no puede
@@ -106,7 +108,7 @@ response = modelo_chat.invoke([message])
 print(response.content)
 
 
-#Modelo de embeddings para RAG, los textos se sacarian de archivos por ejemplo
+#Modelo de embeddings para RAG, los textos se sacarian de archivos por ejemplo con la debida tecnica de chunking y overlapping
 embeddings = OpenAIEmbeddings(model="text-embedding-nomic-embed-text-v1.5-embedding",base_url="http://localhost:1234/v1",api_key="lm-studio",check_embedding_ctx_length=False) #Se esta usando un modelo de embeddings bastante rapido pero no tan eficaz, porque podria relacionar palabras como rest (descansar) y REST (api), en LMStudio existen modelos mas capaces pero tambien mas costosos y lentos
 texts = ["For maintaining healthy you must rest at night, otherwise you will be sleeping all day","A REST API with good structure should be able to be up all night without the server sleeping so there is availability","LangChain provides standard interfaces for connecting LLMs with external data sources.","LM Studio allows developers to run open-weight language models locally on consumer hardware.","Python is the dominant programming language for data science and AI engineering workflows.","DDNet is a relaxing game to chill with your friends, beating maps making use of teamwork","The most important skill to beat FakeGame 2 is patience"]
 vector_store = FAISS.from_texts(texts, embedding=embeddings) #Base de datos vectorial, tambien se puede usar ChromaDB
@@ -121,9 +123,55 @@ vector_store = Chroma(collection_name="texts", embedding_function=embeddings, pe
 vector_store.add_texts(texts)
 print(vector_store.similarity_search("Im very tired, what do you recommend?", k=3))
 print(vector_store.max_marginal_relevance_search("Im very tired, what do you recommend?", k=2, fetch_k=4)) #Hay varios algoritmos
-"""
+
+
+
 
 @dataclass
 class ContextoDos:
     user_role: str
+@dynamic_prompt
+def user_role_prompt(request: ModelRequest) -> str: #Definiendo un middleware, alterara su comportamiento dependiendo del nivel del usuario (almacenado en contexto)
+    user_role = request.runtime.context.user_role
+    base_prompt = "You are a helpful assistant"
+    match user_role:
+        case 'expert':
+            return f'{base_prompt}, provide advanced technical responses'
+        case 'beginner':
+            return f'{base_prompt}, provide basic responses with examples'
+        case _:
+            return base_prompt
+model = ChatOpenAI(base_url="http://localhost:1234/v1", api_key="lm-studio", model="qwen/qwen2.5-coder-14b", temperature=0.5)
+@wrap_model_call
+def dynamic_model_selection(request: ModelRequest, handler) -> ModelResponse: #Este otro middleware decidiria usar un modelo o otro
+    count = len(request.state['messages']) #Se refiere a la cantidad de mensajes, no a la longitud de estos
+    if count > 3:
+        modelo_usar = model
+    else:
+        modelo_usar = model #Aqui cada uno apuntaria a modelos distintos
+    request.model = modelo_usar
+    return handler(request)
+
+agent = create_agent(model=model, middleware=[user_role_prompt, dynamic_model_selection], context_schema=ContextoDos)
+print(agent.invoke({'messages': [SystemMessage("Proceed now to answer the user query"), HumanMessage('Explain FTP')]}, context=ContextoDos(user_role='expert'))) #El system prompt varia segun el rol del contexto gracias al middleware
+
+class HooksEjemplo(AgentMiddleware):
+    def __init__(self):
+        super().__init__()
+        self.start_time = 0.0
+    def before_agent(self, state: AgentState, runtime): #Hooks que se ejecutan en distintas partes del flujo de interaccion con un modelo, consultar documentacion de Langchain
+        self.start_time = time.time()
+        print("before_agent")
+    def before_model(self, state: AgentState, runtime):
+        print("before_model")
+    def after_model(self, state: AgentState, runtime):
+        print("after_model")
+    def after_agent(self, state: AgentState, runtime):
+        print("after_agent")
+        print(time.time() - self.start_time)
     
+model = ChatOpenAI(base_url="http://localhost:1234/v1", api_key="lm-studio", model="qwen/qwen2.5-coder-14b", temperature=0.4)
+agent = create_agent(model=model, middleware=[HooksEjemplo()])
+print(agent.invoke({'messages': [SystemMessage("You are a helpful assistant"), HumanMessage("Fibonacci in C")]}))
+agent = create_agent(model=model, middleware=[SummarizationMiddleware(model=model, max_tokens_before_summary=4000, messages_to_keep=20, summary_prompt="Summarize the most important parts of the conversation")]) #Otro middleware que en este caso podria servir para compactar contextos, hay mas middlewares ya hechos
+
