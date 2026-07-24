@@ -33,7 +33,7 @@ def get_weather(city: str):
 
 
 #Creando un conector al modelo de ia, en este caso con LMStudio cuya API es igual que la de OpenAI (dependiendo del modelo y proveedor puede cambiar)
-model = ChatOpenAI(base_url="http://localhost:1234/v1", api_key="lm-studio", model="qwen/qwen2.5-coder-14b", temperature=0.7)
+model = ChatOpenAI(base_url="http://localhost:1234/v1", api_key="lm-studio", model="google/gemma-4-12b-qat", temperature=0.7)
 #agent = create_agent(model='gpt-4.1-mini', tools=[get_weather], system_prompt="You are a helpful assistant") #Ejemplo creando el agente con OpenAI como proveedor
 agent = create_agent(model=model, tools=[get_weather], system_prompt="You are a helpful assistant") #Creando el agente a partir del modelo
 #Usar el modelo enviando un array de mensajes, convendria darle pautas para que interprete y responda de maneras concretas (como esta llamando al modelo, convendria usar llamadas asincronas)
@@ -70,22 +70,24 @@ def locate_user(runtime: ToolRuntime[Context]): #Este tool recibe el runtime de 
 
 #Establecer modelo de chat, crear un guardador de estado de conversacion (checkpointer) y crear el agente que use los tools y que tenga una estructura de contexto definida (en este caso guarda el id del usuario para ver su ciudad) y un formato de respuesta
 tool_limiter = ToolCallLimitMiddleware(run_limit=3, exit_behavior="error") #Middleware para limitar al modelo, hay de mas tipos
-modelo_chat = init_chat_model(base_url="http://localhost:1234/v1", api_key="lm-studio", model="qwen/qwen2.5-coder-14b", model_provider='openai', temperature=0.2, max_tokens=8192)
+modelo_chat = init_chat_model(base_url="http://localhost:1234/v1", api_key="lm-studio", model="google/gemma-4-12b-qat", model_provider='openai', temperature=0.2, max_tokens=8192)
 checkpointer = InMemorySaver()
 agent = create_agent(model=modelo_chat, tools=[get_weather, locate_user], system_prompt="You are a helpful assistant that helps with hiking, you have access to tools but you should use them only if the task really needs it, if unsure, dont call it and inform the user", context_schema=Context, response_format=ResponseFormat, checkpointer=checkpointer, middleware=[tool_limiter])
 config = {'configurable': {'thread_id': '1'}}
-response = agent.invoke({'messages': [
-    {'role': "user", 'content': "What is the temperature in my city?"}
-]}, config=config, context=Context(user_id='1')) #La configuracion tiene el numero de hilo, el contexto es propio para el usuario que interactua, asi se puede tener un agente multiusuario
-print(response) #Respuesta segun el schema ya definido
-print(response['structured_response'].temperature_celsius)
-response = agent.invoke({'messages': [{'role': "user", 'content': "Is it good for going out?"}]}, config=config, context=Context(user_id='1')) #Seguir la conversacion con el contexto anterior
-print(response['structured_response'])
-
+try:
+    response = agent.invoke({'messages': [
+        {'role': "user", 'content': "What is the temperature in my city?"}
+    ]}, config=config, context=Context(user_id='1')) #La configuracion tiene el numero de hilo, el contexto es propio para el usuario que interactua, asi se puede tener un agente multiusuario
+    print(response) #Respuesta segun el schema ya definido
+    print(response['structured_response'].temperature_celsius)
+    response = agent.invoke({'messages': [{'role': "user", 'content': "Is it good for going out?"}]}, config=config, context=Context(user_id='1')) #Seguir la conversacion con el contexto anterior
+    print(response['structured_response'])
+except:
+    print("Error, limite alcanzado")
 
 
 #Otra manera de llamar al modelo de forma rapida
-modelo_chat = init_chat_model(base_url="http://localhost:1234/v1", api_key="lm-studio", model="qwen/qwen2.5-coder-14b", model_provider='openai', temperature=0.2)
+modelo_chat = init_chat_model(base_url="http://localhost:1234/v1", api_key="lm-studio", model="google/gemma-4-12b-qat", model_provider='openai', temperature=0.2)
 response = modelo_chat.invoke('What is redundancy?')
 print(response.content)
 #Con un historial de mensajes previo
@@ -99,7 +101,7 @@ for chunk in modelo_chat.stream("Count to 50"):
 
 
 imagen = b64encode(open('imagen.png', 'rb').read()).decode()
-modelo_chat = init_chat_model(base_url="http://localhost:1234/v1", api_key="lm-studio", model="qwen/qwen2.5-coder-14b", model_provider='openai', temperature=0.2)
+modelo_chat = init_chat_model(base_url="http://localhost:1234/v1", api_key="lm-studio", model="google/gemma-4-12b-qat", model_provider='openai', temperature=0.2)
 message = HumanMessage(content=[
         {"type": "text", "text": "Describe the contents of this image"},
         {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{imagen}"}}
@@ -115,7 +117,7 @@ vector_store = FAISS.from_texts(texts, embedding=embeddings) #Base de datos vect
 print(vector_store.similarity_search("Im very tired, what do you recommend?", k=4)) #Los ejemplos podrian ser mejores y mas grandes (chunking de un documento), pero serviria para analizar un prompt y incrustar solo los chunks mas semanticamente relevantes para no saturar el contexto
 retriever = vector_store.as_retriever(search_kwargs={'k': 3}) #Retriever que se usa despues como tool para un agente
 retriever_tool = create_retriever_tool(retriever, name='kb_search', description='Search in the document database for information') #Tool normal para un agente
-model = ChatOpenAI(base_url="http://localhost:1234/v1", api_key="lm-studio", model="qwen/qwen2.5-coder-14b", temperature=0.7)
+model = ChatOpenAI(base_url="http://localhost:1234/v1", api_key="lm-studio", model="google/gemma-4-12b-qat", temperature=0.7)
 agent = create_agent(model=model, tools=[retriever_tool], system_prompt="You are a helpful assistant that can search in a knowledge database using it as a main source of truth, maybe you have to use it multiple times before answering")
 print(agent.invoke({'messages': [{"role": "user", "content": "What is the most important skill to beat FakeGame 2? Patience or fast thinking? Argument it"}]})["messages"][-1].content)
 
@@ -141,7 +143,7 @@ def user_role_prompt(request: ModelRequest) -> str: #Definiendo un middleware, a
             return f'{base_prompt}, provide basic responses with examples'
         case _:
             return base_prompt
-model = ChatOpenAI(base_url="http://localhost:1234/v1", api_key="lm-studio", model="qwen/qwen2.5-coder-14b", temperature=0.5)
+model = ChatOpenAI(base_url="http://localhost:1234/v1", api_key="lm-studio", model="google/gemma-4-12b-qat", temperature=0.5)
 @wrap_model_call
 def dynamic_model_selection(request: ModelRequest, handler) -> ModelResponse: #Este otro middleware decidiria usar un modelo o otro
     count = len(request.state['messages']) #Se refiere a la cantidad de mensajes, no a la longitud de estos
@@ -170,7 +172,7 @@ class HooksEjemplo(AgentMiddleware):
         print("after_agent")
         print(time.time() - self.start_time)
     
-model = ChatOpenAI(base_url="http://localhost:1234/v1", api_key="lm-studio", model="qwen/qwen2.5-coder-14b", temperature=0.4)
+model = ChatOpenAI(base_url="http://localhost:1234/v1", api_key="lm-studio", model="google/gemma-4-12b-qat", temperature=0.4)
 agent = create_agent(model=model, middleware=[HooksEjemplo()])
 print(agent.invoke({'messages': [SystemMessage("You are a helpful assistant"), HumanMessage("Fibonacci in C")]}))
 agent = create_agent(model=model, middleware=[SummarizationMiddleware(model=model, max_tokens_before_summary=4000, messages_to_keep=20, summary_prompt="Summarize the most important parts of the conversation")]) #Otro middleware que en este caso podria servir para compactar contextos, hay mas middlewares ya hechos
