@@ -17,10 +17,10 @@ from langgraph.types import interrupt, Command
 
 #Se necesita un modelo, proveido por Langchain
 llm = init_chat_model(base_url="http://localhost:1234/v1", api_key="lm-studio", model="google/gemma-4-12b-qat", model_provider='openai', temperature=0.2)
-"""
+
 #Nodo del grafo, recibe el estado actual de mensajes (conteniendo los mensajes) y agrega el nuevo que da el modelo
 def prompt_llm(state: MessagesState):
-    response = llm.invoke(state['messages'])
+    response = llm.invoke(state['messages']) #Tambien esta graph.stream para ir viendo como aparecen las palabras
     return {'messages': [response]}
 
 graph_builder = StateGraph(MessagesState) #Definiendo el grafo
@@ -32,10 +32,6 @@ graph = graph_builder.compile(checkpointer=checkpointer) #El grafo se tiene que 
 config = {'configurable': {'thread_id': uuid.uuid4()}} #Hacer una sesion para ejecutar
 while False: #Interactuando iterativamente
     print(graph.invoke({'messages': [{'role': 'user', 'content': input("X: ")}]}, config=config)['messages'][-1].content)
-
-
-"""
-
 
 
 
@@ -120,10 +116,10 @@ def accept_coding(state: State):
     decision = interrupt(f'About to edit code files or execute a command with request\n\n{user_prompt}\n\nApprove? (y/n, or type a revised request)')
     text = str(decision).strip().lower()
     if text in ['y', 'yes', 'si', 'ok']:
-        return {}
+        return {'next_node': 'code_agent'}
     if text in ['n', 'no', 'quit', 'exit']:
         return {'messages': [{'role': 'assistant', 'content': 'Coding request was denied by user.'}], 'next_node': 'denied'} #Alterando el estado, este campo indica si procede a realizar los cambios o va al nodo de denegacion
-    return {'messages': [{'role': 'user', 'content': "Original task changed, do this instead: " + str(decision)}]}
+    return {'messages': [{'role': 'user', 'content': "Original task changed, do this instead: " + str(decision)}], 'next_node': 'accept_coding'}
 #Nodo por si quiere editar codigo
 def prompt_llm_code(state: State):
     #Hace un agente con tools de manipulacion de archivos, lo interesante seria que se ejecutase en bucle iterando hasta conseguir el resultado, invocando subagentes y compactando contexto
@@ -131,6 +127,9 @@ def prompt_llm_code(state: State):
     result = code_agent_subgraph.invoke({"messages": state['messages']})
     new_messages = result['messages'][len(state['messages']):]
     return {'messages': new_messages}
+def prepare_coding_request(state: State): #Enriquecer la operacion con el contexto de la conversacion previa opcionalmente (ahora mismo no esta en uso, haria de intermediario con accept_coding)
+    response = llm.invoke([{'role': 'system', 'content': 'Rewrite the latest user coding request into a clear instruction for the LLM, use conversation history as context, only output the instruction'}])
+    return {'messages': [{'role': 'user', 'content': response.content}]}
 
 #Configurar el grafo
 graph_builder = StateGraph(State)
@@ -139,10 +138,12 @@ graph_builder.add_node("chat_agent", prompt_llm_chat)
 graph_builder.add_node("rag_agent", prompt_llm_rag)
 graph_builder.add_node("code_agent", prompt_llm_code)
 graph_builder.add_node("accept_coding", accept_coding)
+#graph_builder.add_node("prepare_coding_request", prepare_coding_request)
 graph_builder.add_edge(START, "classifier")
 #Nodo condicional, dependiendo de state.message_intent (establecido por el clasificador) ira a un nodo u otro, usando una lambda
-graph_builder.add_conditional_edges("accept_coding", lambda state: 'end' if state.get('next_node') == 'denied' else 'code_agent') #Condicional dependiendo del resultado en el estado de aprovar o no una operacion
+graph_builder.add_conditional_edges("accept_coding", lambda state: 'end' if state.get('next_node') == 'denied' else state['next_node'], {'end': END, 'code_agent': 'code_agent', 'accept_coding': 'accept_coding'}) #Condicional dependiendo del resultado en el estado de aprovar o no una operacion
 graph_builder.add_conditional_edges("classifier", lambda state: state['message_intent'], {'chat': 'chat_agent', 'knowledge': 'rag_agent', 'code': 'accept_coding'}) #Condicional dependiendo de la intencion del prompt del usuario
+#graph_builder.add_edge("prepare_coding_request", "accept_coding")
 graph_builder.add_edge("chat_agent", END)
 graph_builder.add_edge("rag_agent", END)
 graph_builder.add_edge("code_agent", END)
